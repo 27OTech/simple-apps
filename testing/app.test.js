@@ -1,44 +1,73 @@
 const request = require('supertest');
-const mysql = require('mysql');
 require('dotenv').config();
 
 const connection = require('../middleware/db_connect');
-const app = require('../app'); // Replace with the path to your application file
+const app = require('../app');
 
-describe('Unit Test /', () => {
-  it('should respond with index.html', async () => {
+const util = require('util');
+
+beforeAll(async () => {
+  // Pastikan DB connect sebelum test jalan
+ connection.query = util.promisify(connection.query);
+});
+
+afterAll(async () => {
+  // Tutup koneksi setelah semua test selesai
+  await connection.end();
+});
+
+describe('Express App - Unit Tests', () => {
+  it('GET / should respond with index.html', async () => {
     const response = await request(app).get('/');
     expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/html/);
+  });
+
+  it('GET /app1 should respond with "Hello App1!"', async () => {
+    const response = await request(app).get('/app1');
+    expect(response.status).toBe(200);
+    expect(response.text).toMatch(/Hello this Apps 1!/i);
+  });
+
+  it('GET /app2 should respond with "Hello App2!"', async () => {
+    const response = await request(app).get('/app2');
+    expect(response.status).toBe(200);
+    expect(response.text).toMatch(/Hello this App 2!/i);
+  });
+
+  it('GET /invalid should return 404 for unknown route', async () => {
+    const response = await request(app).get('/invalid');
+    expect(response.status).toBe(404);
   });
 });
 
-describe('Unit Test /app1', () => {
-    it('should respond with "Hello App1!"', async () => {
-      const response = await request(app).get('/app1');
-      expect(response.status).toBe(200);
-    });
-  });
-
-  describe('Unit Test /app2', () => {
-    it('should respond with "Hello App2!"', async () => {
-      const response = await request(app).get('/app2');
-      expect(response.status).toBe(200);
-    });
-  });
-
-describe('Integration Test Connect Database', () => {
-  beforeEach(() => {
-    // Set the connection for the application to use
-    app.set('connection', connection.connect);
-  });
-
-  afterEach(() => {
-    // Close the connection pool after the tests are done
-    connection.end();
-  });
-
-  it('should respond with users data', async () => {
+describe('Express App - Integration Tests (Database)', () => {
+  it('GET /users should respond with users data', async () => {
     const response = await request(app).get('/users');
     expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+
+  it('GET /users with broken query should return 500', async () => {
+  // Simulate error dengan callback style
+  const originalQuery = connection.query;
+  connection.query = jest.fn((sql, cb) => cb(new Error('Simulated DB error'), null));
+
+  const response = await request(app).get('/users');
+  expect(response.status).toBe(500);
+  expect(response.body).toHaveProperty('message', 'Database error');
+
+  // balikin lagi
+  connection.query = originalQuery;
+  });
+  
+  it('DB query should return at least 1 record from users table', async () => {
+    const rows = await connection.query('SELECT * FROM tb_data LIMIT 1');
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('DB should reject invalid SQL query', async () => {
+    await expect(connection.query('SELECT * FROM non_existing_table'))
+    .rejects.toThrow();
   });
 });
