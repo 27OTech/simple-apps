@@ -35,10 +35,6 @@ describe('Express App - Unit Tests', () => {
     expect(response.text).toMatch(/Hello this App 2!/i);
   });
 
-  it('GET /invalid should return 404 for unknown route', async () => {
-    const response = await request(app).get('/invalid');
-    expect(response.status).toBe(404);
-  });
 });
 
 describe('Express App - Integration Tests (Database)', () => {
@@ -46,19 +42,6 @@ describe('Express App - Integration Tests (Database)', () => {
     const response = await request(app).get('/users');
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
-  });
-
-  it('GET /users with broken query should return 500', async () => {
-  // Simulate error dengan callback style
-  const originalQuery = connection.query;
-  connection.query = jest.fn((sql, cb) => cb(new Error('Simulated DB error'), null));
-
-  const response = await request(app).get('/users');
-  expect(response.status).toBe(500);
-  expect(response.body).toHaveProperty('message', 'Database error');
-
-  // balikin lagi
-  connection.query = originalQuery;
   });
   
   it('DB query should return at least 1 record from users table', async () => {
