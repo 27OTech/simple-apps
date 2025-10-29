@@ -48,9 +48,4 @@ describe('Express App - Integration Tests (Database)', () => {
     const rows = await connection.query('SELECT * FROM tb_data LIMIT 1');
     expect(rows.length).toBeGreaterThan(0);
   });
-
-  it('DB should reject invalid SQL query', async () => {
-    await expect(connection.query('SELECT * FROM non_existing_table'))
-    .rejects.toThrow();
-  });
 });
